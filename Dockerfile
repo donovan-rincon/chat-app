@@ -1,8 +1,8 @@
-# Use the official Golang image as the base image
-FROM golang:1.16-alpine
+# Stage 1: Build the Go app
+FROM golang:1.24 AS builder
 
 # Set the current working directory inside the container
-WORKDIR /app
+WORKDIR /chatapp
 
 # Copy go.mod and go.sum files
 COPY go.mod go.sum ./
@@ -14,10 +14,22 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) go build -o main .
+
+# Stage 2: Create a minimal image to run the Go app
+FROM alpine:latest
+
+# Set the current working directory inside the container
+WORKDIR /chatapp
+
+# Copy the binary from the builder stage
+COPY --from=builder /chatapp .
+
+# Ensure the executable has the correct permissions (for Unix systems)
+RUN chmod +x main
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
-# Command to run the executable
-CMD ["./main"]
+# Entrypoint for app
+ENTRYPOINT [ "./main || ./main.exe" ]
