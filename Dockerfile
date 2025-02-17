@@ -1,35 +1,39 @@
 # Stage 1: Build the Go app
-FROM golang:1.24 AS builder
+FROM golang:1.24-alpine AS builder
 
-# Set the current working directory inside the container
-WORKDIR /chatapp
+# Install necessary packages
+RUN apk add --no-cache git
 
-# Copy go.mod and go.sum files
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy go.mod and go.sum before the rest to take advantage of Docker caching
 COPY go.mod go.sum ./
 
-# Download all dependencies
+# Download dependencies
 RUN go mod download
 
-# Copy the source code into the container
+# Copy the entire source code
 COPY . .
 
+# Ensure we are in the correct directory where `main.go` is located
+RUN ls -la  # Debugging: Show files to check if main.go exists
+
 # Build the Go app
-RUN GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) go build -o main .
+RUN go build -o main ./  # Ensure `main.go` is found
 
 # Stage 2: Create a minimal image to run the Go app
 FROM alpine:latest
 
-# Set the current working directory inside the container
-WORKDIR /chatapp
+# Set the working directory inside the container
+WORKDIR /root/
 
-# Copy the binary from the builder stage
-COPY --from=builder /chatapp .
+# Install necessary dependencies
+RUN apk add --no-cache ca-certificates
 
-# Ensure the executable has the correct permissions (for Unix systems)
-RUN chmod +x main
+# Copy the built Go app from the builder stage
+COPY --from=builder /app/main .
+COPY --from=builder /app/.env .
 
-# Expose port 8080 to the outside world
-EXPOSE 8080
-
-# Entrypoint for app
-ENTRYPOINT [ "./main || ./main.exe" ]
+# Command to run the Go app
+CMD ["./main"]
