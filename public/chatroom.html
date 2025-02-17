@@ -21,17 +21,33 @@
 
         const ws = new WebSocket(`ws://localhost:8080/ws/${chatroom}`);
         const messages = document.getElementById("messages");
+        let messageArray = [];
 
         ws.onmessage = function (event) {
-            const messagesData = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data)) {
+                // If an array of messages is received, replace the message array
+                messageArray.pushg(data.reverse());
+            } else {
+                // If a single message is received, append it to the array
+                messageArray.push(data);
+            }
+            // Keep only the last 50 messages since we have bot messages, take that into account so we don't loose any
+            if (messageArray.length > 50) {
+                messageArray.shift();
+            }
+            updateMessagesDisplay();
+        };
+
+        function updateMessagesDisplay() {
             messages.innerHTML = '';
-            messagesData.reverse().forEach(msg => {
+            messageArray.forEach(msg => {
                 const p = document.createElement("p");
                 p.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span style="color: gray;">(${msg.timestamp})</span>`;
                 messages.appendChild(p);
             });
             messages.scrollTop = messages.scrollHeight;
-        };
+        }
 
         document.getElementById("message").addEventListener("submit", function (e) {
             e.preventDefault();
@@ -39,8 +55,6 @@
             const message = input.value;
             const username = sessionStorage.getItem("username");
             ws.send(JSON.stringify({ Username: username, Message: message }));
-            console.log("Sent message:", message);
-            console.log("Sent by:", username);
             input.value = '';
         });
     </script>

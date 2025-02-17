@@ -3,8 +3,10 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	"chat-app/bot"
 	"chat-app/db"
 	"chat-app/models"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/streadway/amqp"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -120,6 +123,9 @@ func handleConnections(c *gin.Context) {
 		go handleMessages(chatroom)
 	}
 
+	// Listen for messages from RabbitMQ
+	go listenForRabbitMQMessages(ws)
+
 	clients[chatroom.ID][ws] = true
 
 	for {
@@ -128,6 +134,11 @@ func handleConnections(c *gin.Context) {
 		if err != nil {
 			delete(clients[chatroom.ID], ws)
 			break
+		}
+
+		if isStockCommand(wsMsg.Message) {
+			bot.ProcessStockRequest(wsMsg.Message)
+			continue
 		}
 
 		user, err := db.GetUserByUsername(wsMsg.Username)
@@ -155,12 +166,14 @@ func handleConnections(c *gin.Context) {
 	}
 }
 
+func isStockCommand(message string) bool {
+	return strings.HasPrefix(message, "/stock=")
+}
+
 func handleMessages(chatroom *models.Chatroom) {
 	for {
 		msg := <-broadcast[chatroom.ID]
-		log.Printf("New message in chatroom '%s': %v", chatroom.Name, msg)
-
-		messages, err := db.GetLastUserMessages(chatroom.ID, 50)
+		messages, err := db.GetLastUserMessages(msg.ChatroomID, 50)
 		if err != nil {
 			log.Printf("Failed to retrieve messages: %v", err)
 			continue
@@ -172,6 +185,52 @@ func handleMessages(chatroom *models.Chatroom) {
 				client.Close()
 				delete(clients[chatroom.ID], client)
 			}
+		}
+	}
+}
+
+func listenForRabbitMQMessages(ws *websocket.Conn) {
+	conn, err := amqp.Dial(bot.GetRabbitMQURL())
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		"chatroom_messages",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare a queue: %v", err)
+	}
+
+	msgs, err := ch.Consume(
+		q.Name,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("Failed to register a consumer: %v", err)
+	}
+
+	for d := range msgs {
+		err := ws.WriteMessage(websocket.TextMessage, d.Body)
+		if err != nil {
+			log.Printf("Error writing message to WebSocket: %v", err)
 		}
 	}
 }
