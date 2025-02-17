@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main ./cmd
+RUN go build -o main ./cmd/main.go
 
 # Stage 2: Create a minimal image to run the Go app
 FROM alpine:latest
@@ -31,7 +31,7 @@ RUN apk add --no-cache ca-certificates
 # Copy the built Go app from the builder stage
 COPY --from=builder /app/main .
 COPY --from=builder /app/.env .
-COPY --from=builder /app/public .
+COPY --from=builder /app/public /root/public
 
 # Command to run the Go app
 CMD ["./main"]

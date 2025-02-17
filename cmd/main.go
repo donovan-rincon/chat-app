@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/donovan-rincon/chat-app/database"
-	"github.com/donovan-rincon/chat-app/handlers"
+	"chat-app/database"
+	"chat-app/handlers"
 )
 
 func main() {

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/donovan-rincon/chat-app/config"
-	"github.com/donovan-rincon/chat-app/models"
+	"chat-app/config"
+	"chat-app/models"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -23,5 +24,5 @@ func Init() {
 		log.Fatal("Error connecting to database:", err)
 	}
 
-	DB.AutoMigrate(&models.User{}, &models.Message{}, &models.Chatroom{})
+	DB.AutoMigrate(&models.User{}, &models.UserMessage{}, &models.Chatroom{})
 }

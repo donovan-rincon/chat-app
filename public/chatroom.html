@@ -4,42 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chatroom</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Chatroom</h2>
-        <div id="chat-window">
-            <ul id="messages"></ul>
-        </div>
-        <form id="message-form">
-            <input type="text" id="message-input" placeholder="Type a message" required>
-            <button type="submit">Send</button>
-        </form>
-    </div>
+    <h1 id="chatroom-title"></h1>
+    <div id="messages"></div>
+    <form id="message">
+        <input type="text" id="message-input" placeholder="Type a message" required>
+        <button type="submit">Send</button>
+    </form>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const chatroom = urlParams.get('name');
+        const chatroom = "{{ .chatroom }}"; // Chatroom name from the server
+        const chatroomTitle = document.getElementById("chatroom-title");
+        chatroomTitle.textContent = `Chatroom: ${chatroom}`;
+
         const ws = new WebSocket(`ws://localhost:8080/ws/${chatroom}`);
         const messages = document.getElementById("messages");
 
         ws.onmessage = function (event) {
             const messagesData = JSON.parse(event.data);
             messages.innerHTML = '';
-            messagesData.forEach(msg => {
-                const li = document.createElement("li");
-                li.textContent = `${msg.Username}: ${msg.Message} (${new Date(msg.Timestamp * 1000).toLocaleTimeString()})`;
-                messages.appendChild(li);
+            messagesData.reverse().forEach(msg => {
+                const p = document.createElement("p");
+                p.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span style="color: gray;">(${msg.timestamp})</span>`;
+                messages.appendChild(p);
             });
+            messages.scrollTop = messages.scrollHeight;
         };
 
-        document.getElementById("message-form").addEventListener("submit", function (e) {
+        document.getElementById("message").addEventListener("submit", function (e) {
             e.preventDefault();
             const input = document.getElementById("message-input");
             const message = input.value;
             const username = sessionStorage.getItem("username");
             ws.send(JSON.stringify({ Username: username, Message: message }));
+            console.log("Sent message:", message);
+            console.log("Sent by:", username);
             input.value = '';
         });
     </script>

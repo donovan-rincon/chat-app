@@ -7,15 +7,15 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Login</h2>
-        <form id="login-form">
-            <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <p>Don't have an account? <a href="register.html">Register here</a></p>
-    </div>
+    <form id="login-form">
+        <h1>Login</h1>
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Username" required>
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="register.html">Register here</a></p>
 
     <script>
         document.getElementById("login-form").addEventListener("submit", async function (e) {
@@ -32,7 +32,9 @@
             });
 
             if (response.ok) {
-                window.location.href = "chatroom.html";
+                const data = await response.json();
+                sessionStorage.setItem("username", username);
+                window.location.href = data.redirect; // Redirect based on server response
             } else {
                 alert("Invalid credentials");
             }

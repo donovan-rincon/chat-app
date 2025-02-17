@@ -8,15 +8,21 @@ type User struct {
 	Password string `json:"password"`
 }
 
-type Message struct {
+type UserMessage struct {
 	gorm.Model
 	ChatroomID uint   `json:"chatroom_id"`
-	UserID  string `json:"userid"`
-	Content   string `json:"content"`
-	Timestamp string `json:"timestamp"`
+	UserID     uint   `json:"user_id"`
+	Username   string `json:"username"`
+	Message    string `json:"message"`
+	Timestamp  string `json:"timestamp"`
 }
 
 type Chatroom struct {
 	gorm.Model
 	Name string `json:"name"`
+}
+
+type WSMessage struct {
+	Username string `json:"username"`
+	Message  string `json:"message"`
 }

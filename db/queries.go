@@ -1,8 +1,10 @@
 package db
 
 import (
-	"github.com/donovan-rincon/chat-app/database"
-	"github.com/donovan-rincon/chat-app/models"
+	"chat-app/database"
+	"chat-app/models"
+
+	"gorm.io/gorm"
 )
 
 // User operations
@@ -19,8 +21,18 @@ func GetUserByUsername(username string) (*models.User, error) {
 // Chatroom operations
 func GetOrCreateChatroom(name string) (*models.Chatroom, error) {
 	var chatroom models.Chatroom
-	err := database.DB.Where("name = ?", name).FirstOrCreate(&chatroom).Error
-	return &chatroom, err
+	err := database.DB.Where("name = ?", name).First(&chatroom).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	if chatroom.ID == 0 {
+		chatroom.Name = name
+		err = database.DB.Create(&chatroom).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &chatroom, nil
 }
 
 func GetChatroomByName(name string) (*models.Chatroom, error) {
@@ -30,12 +42,12 @@ func GetChatroomByName(name string) (*models.Chatroom, error) {
 }
 
 // Message operations
-func CreateMessage(message *models.Message) error {
+func CreateUserMessage(message *models.UserMessage) error {
 	return database.DB.Create(message).Error
 }
 
-func GetLastMessages(chatroomID uint, limit int) ([]models.Message, error) {
-	var messages []models.Message
+func GetLastUserMessages(chatroomID uint, limit int) ([]models.UserMessage, error) {
+	var messages []models.UserMessage
 	err := database.DB.Where("chatroom_id = ?", chatroomID).Order("timestamp desc").Limit(limit).Find(&messages).Error
 	return messages, err
 }

@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/donovan-rincon/chat-app/db"
-	"github.com/donovan-rincon/chat-app/models"
+	"chat-app/db"
+	"chat-app/models"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -15,7 +16,7 @@ import (
 )
 
 var clients = make(map[uint]map[*websocket.Conn]bool)
-var broadcast = make(map[uint]chan models.Message)
+var broadcast = make(map[uint]chan models.UserMessage)
 var upgrader = websocket.Upgrader{}
 
 func SetupRouter() *gin.Engine {
@@ -28,7 +29,8 @@ func SetupRouter() *gin.Engine {
 	r.GET("/chatroom/:name", authMiddleware(), chatroomHandler)
 	r.GET("/ws/:name", authMiddleware(), handleConnections)
 
-	r.Static("/public", "./app/public")
+	r.Static("/public", "./public")
+	r.Static("/css", "./public/css")
 	r.LoadHTMLGlob("public/*.html")
 
 	return r
@@ -67,7 +69,8 @@ func loginHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Set("username", user.Username)
 	session.Save()
-	c.JSON(http.StatusOK, gin.H{"status": "logged in"})
+
+	c.JSON(http.StatusOK, gin.H{"redirect": "/chatroom/home"}) // Redirect to default chatroom
 }
 
 func authMiddleware() gin.HandlerFunc {
@@ -85,6 +88,11 @@ func authMiddleware() gin.HandlerFunc {
 
 func chatroomHandler(c *gin.Context) {
 	chatroomName := c.Param("name")
+	if chatroomName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "chatroom name is required"})
+		return
+	}
+	log.Printf("Chatroom requested: %s", chatroomName)
 	chatroom, err := db.GetOrCreateChatroom(chatroomName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "chatroom creation failed"})
@@ -108,23 +116,41 @@ func handleConnections(c *gin.Context) {
 
 	if clients[chatroom.ID] == nil {
 		clients[chatroom.ID] = make(map[*websocket.Conn]bool)
-		broadcast[chatroom.ID] = make(chan models.Message)
+		broadcast[chatroom.ID] = make(chan models.UserMessage)
 		go handleMessages(chatroom)
 	}
 
 	clients[chatroom.ID][ws] = true
 
 	for {
-		var msg models.Message
-		err := ws.ReadJSON(&msg)
+		var wsMsg models.WSMessage
+		err := ws.ReadJSON(&wsMsg)
 		if err != nil {
 			delete(clients[chatroom.ID], ws)
 			break
 		}
 
-		msg.ChatroomID = chatroom.ID
-		msg.Timestamp = time.Now().String()
-		db.CreateMessage(&msg)
+		user, err := db.GetUserByUsername(wsMsg.Username)
+		if err != nil {
+			log.Printf("Failed to retrieve user: %v", err)
+			continue
+		}
+
+		currentTime := time.Now()
+		formattedTime := currentTime.Format("2006-01-02 15:04:05")
+
+		msg := models.UserMessage{
+			ChatroomID: chatroom.ID,
+			UserID:     user.ID,
+			Username:   user.Username,
+			Message:    wsMsg.Message,
+			Timestamp:  formattedTime,
+		}
+		err = db.CreateUserMessage(&msg)
+		if err != nil {
+			log.Printf("Failed to save message: %v", err)
+			continue
+		}
 		broadcast[chatroom.ID] <- msg
 	}
 }
@@ -132,9 +158,9 @@ func handleConnections(c *gin.Context) {
 func handleMessages(chatroom *models.Chatroom) {
 	for {
 		msg := <-broadcast[chatroom.ID]
-		log.Printf("New message in chatroom '%s': %s", chatroom.Name, msg.Content)
+		log.Printf("New message in chatroom '%s': %v", chatroom.Name, msg)
 
-		messages, err := db.GetLastMessages(chatroom.ID, 50)
+		messages, err := db.GetLastUserMessages(chatroom.ID, 50)
 		if err != nil {
 			log.Printf("Failed to retrieve messages: %v", err)
 			continue
