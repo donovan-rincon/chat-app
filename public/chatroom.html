@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatroom</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Chatroom</h2>
+        <div id="chat-window">
+            <ul id="messages"></ul>
+        </div>
+        <form id="message-form">
+            <input type="text" id="message-input" placeholder="Type a message" required>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatroom = urlParams.get('name');
+        const ws = new WebSocket(`ws://localhost:8080/ws/${chatroom}`);
+        const messages = document.getElementById("messages");
+
+        ws.onmessage = function (event) {
+            const messagesData = JSON.parse(event.data);
+            messages.innerHTML = '';
+            messagesData.forEach(msg => {
+                const li = document.createElement("li");
+                li.textContent = `${msg.Username}: ${msg.Message} (${new Date(msg.Timestamp * 1000).toLocaleTimeString()})`;
+                messages.appendChild(li);
+            });
+        };
+
+        document.getElementById("message-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            const input = document.getElementById("message-input");
+            const message = input.value;
+            const username = sessionStorage.getItem("username");
+            ws.send(JSON.stringify({ Username: username, Message: message }));
+            input.value = '';
+        });
+    </script>
+</body>
+</html>

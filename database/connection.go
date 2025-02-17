@@ -23,5 +23,5 @@ func Init() {
 		log.Fatal("Error connecting to database:", err)
 	}
 
-	DB.AutoMigrate(&models.User{}, &models.Message{})
+	DB.AutoMigrate(&models.User{}, &models.Message{}, &models.Chatroom{})
 }

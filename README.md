@@ -1,4 +1,3 @@
-# chat-app
 # Chat Application
 
 A simple browser-based chat application using Go, PostgreSQL, and Docker. 
@@ -16,7 +15,7 @@ The application also includes a bot that responds to the `/stock=stock_code` com
 - Dockerized setup with Docker Compose
 
 ## Prerequisites
-
+- [Go](https://go.dev/doc/install)
 - [Docker](https://www.docker.com/get-started)
 - [Docker Compose](https://docs.docker.com/compose/install/)
 
@@ -37,5 +36,4 @@ The application also includes a bot that responds to the `/stock=stock_code` com
 1. Build and run the Docker containers:
 
    ```bash
-   docker-compose build
-   docker-compose up
+   docker-compose up --build
