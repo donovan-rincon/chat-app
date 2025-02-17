@@ -27,7 +27,7 @@
             const data = JSON.parse(event.data);
             if (Array.isArray(data)) {
                 // If an array of messages is received, replace the message array
-                messageArray.pushg(data.reverse());
+                messageArray.push(data.reverse());
             } else {
                 // If a single message is received, append it to the array
                 messageArray.push(data);
