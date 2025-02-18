@@ -28,17 +28,17 @@ func GetRabbitMQURL() string {
 	return rabbitMQURL
 }
 
-func ProcessStockRequest(StockCommand string) {
+func ProcessStockRequest(chatroomID uint, StockCommand string) {
 	stockCommandParams := strings.Split(StockCommand, "=")
 	if len(stockCommandParams) != 2 {
-		sendInvalidCommandResponse(StockCommand)
+		sendInvalidCommandResponse(chatroomID, StockCommand)
 		return
 	}
 	stockCode := stockCommandParams[1]
 	response, err := http.Get(fmt.Sprintf("https://stooq.com/q/l/?s=%s&f=sd2t2ohlcv&h&e=csv", stockCode))
 	if err != nil {
 		log.Printf("Failed to call stock API: %v", err)
-		sendErrorResponse(stockCode)
+		sendErrorResponse(chatroomID, stockCode)
 		return
 	}
 	body, _ := io.ReadAll(response.Body)
@@ -47,7 +47,7 @@ func ProcessStockRequest(StockCommand string) {
 	records, _ := reader.ReadAll()
 
 	if len(records) == 0 || len(records[0]) == 0 {
-		sendInvalidCommandResponse(stockCode)
+		sendInvalidCommandResponse(chatroomID, stockCode)
 		return
 	}
 
@@ -65,12 +65,12 @@ func ProcessStockRequest(StockCommand string) {
 	jsonMessage, err := json.Marshal(stockMessage)
 	if err != nil {
 		log.Fatalf("Failed to marshal stock message: %v", err)
-		sendErrorResponse(err.Error())
+		sendErrorResponse(chatroomID, err.Error())
 	}
-	sendStockMessage(jsonMessage)
+	sendStockMessage(chatroomID, jsonMessage)
 }
 
-func sendStockMessage(stockMessage []byte) {
+func sendStockMessage(chatroomID uint, stockMessage []byte) {
 	conn, err := amqp.Dial(GetRabbitMQURL())
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
@@ -83,8 +83,9 @@ func sendStockMessage(stockMessage []byte) {
 	}
 	defer ch.Close()
 
+	queueName := fmt.Sprintf("chatroom_messages_%d", chatroomID)
 	q, err := ch.QueueDeclare(
-		"chatroom_messages",
+		queueName,
 		false,
 		false,
 		false,
@@ -110,10 +111,10 @@ func sendStockMessage(stockMessage []byte) {
 	log.Printf("Sent message: %s", stockMessage)
 }
 
-func sendErrorResponse(stockCode string) {
-	sendStockMessage([]byte(fmt.Sprintf("Error: Unable to fetch stock for command '%s'. Please try again later.", stockCode)))
+func sendErrorResponse(chatroomID uint, stockCode string) {
+	sendStockMessage(chatroomID, []byte(fmt.Sprintf("Error: Unable to fetch stock for command '%s'. Please try again later.", stockCode)))
 }
 
-func sendInvalidCommandResponse(stockCode string) {
-	sendStockMessage([]byte(fmt.Sprintf("Error: Invalid stock command '%s'. Please check the available commands and try again.", stockCode)))
+func sendInvalidCommandResponse(chatroomID uint, stockCode string) {
+	sendStockMessage(chatroomID, []byte(fmt.Sprintf("Error: Invalid stock command '%s'. Please check the available commands and try again.", stockCode)))
 }

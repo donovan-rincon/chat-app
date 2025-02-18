@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -127,7 +128,7 @@ func handleConnections(c *gin.Context) {
 	initChatroom(chatroom, ws)
 
 	// Listen for messages from RabbitMQ
-	go listenForRabbitMQMessages(ws)
+	go listenForRabbitMQMessages(chatroom.ID, ws)
 
 	clients[chatroom.ID][ws] = true
 
@@ -140,7 +141,7 @@ func handleConnections(c *gin.Context) {
 		}
 
 		if isStockCommand(wsMsg.Message) {
-			bot.ProcessStockRequest(wsMsg.Message)
+			bot.ProcessStockRequest(chatroom.ID, wsMsg.Message)
 			continue
 		}
 
@@ -208,7 +209,7 @@ func handleMessages(chatroom *models.Chatroom) {
 	}
 }
 
-func listenForRabbitMQMessages(ws *websocket.Conn) {
+func listenForRabbitMQMessages(chatroomID uint, ws *websocket.Conn) {
 	conn, err := amqp.Dial(bot.GetRabbitMQURL())
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
@@ -221,8 +222,9 @@ func listenForRabbitMQMessages(ws *websocket.Conn) {
 	}
 	defer ch.Close()
 
+	queueName := fmt.Sprintf("chatroom_messages_%d", chatroomID)
 	q, err := ch.QueueDeclare(
-		"chatroom_messages",
+		queueName,
 		false,
 		false,
 		false,

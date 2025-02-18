@@ -43,7 +43,11 @@ The application also includes a bot that responds to the `/stock=stock_code` com
 2. Access the application:
 
     - Open your browser and navigate to [`http://localhost:8080/public/login.html`] to log in or register.
-    - After logging in, you will be redirected to the chatroom.
+    - After logging in, you will be redirected to the chatroom/home. (Will load the default messages from home)
+        - If want to open a new chatroom, in the same tab that it was logged in, update the chatroom/{chatroom_name} to create a new chatroom
+            NOTE: if the tab is changed, the sessionstorage from the web browser tab is lost and need to login again
+        - Each tab has its own sessionstorage login username
+    - To use `/stock` command just type `stock=[stock_name]`, when the reponse is ready is going to be sent to the chatroom asynchronously 
 
 ## Project Structure
 
