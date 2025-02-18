@@ -22,18 +22,29 @@ The application also includes a bot that responds to the `/stock=stock_code` com
 ## Configuration
 
 1. Create the .env file for DB secrets and config and place it in root directory of the project:
-     ```
+    ```env
     DB_HOST=db
     DB_USER=postgres
     DB_PASSWORD=postgres
     DB_NAME=chatapp
     DB_PORT=5432
     DB_SSLMODE=disable
-     ```
+    RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ```
 
 ## Running the Application
 
 1. Build and run the Docker containers:
 
-   ```bash
-   docker-compose up --build
+    ```bash
+    docker-compose up --build
+    ```
+
+2. Access the application:
+
+    - Open your browser and navigate to [`http://localhost:8080/public/login.html`] to log in or register.
+    - After logging in, you will be redirected to the chatroom.
+
+## Project Structure
+
+![alt text](image.png)

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -50,13 +51,16 @@ func ProcessStockRequest(StockCommand string) {
 		return
 	}
 
+	currentTime := time.Now()
+	formattedTime := currentTime.Format("2006-01-02 15:04:05")
+
 	symbol := records[1][0] // share symbol from response
 	price := records[1][6]  // share price from response (considering close is the share price)
 	msg := fmt.Sprintf("Stock %s quote is $%s per share", symbol, price)
 	stockMessage := StockMessage{
 		Username:  "stock_bot",
 		Message:   msg,
-		Timestamp: "now",
+		Timestamp: formattedTime,
 	}
 	jsonMessage, err := json.Marshal(stockMessage)
 	if err != nil {

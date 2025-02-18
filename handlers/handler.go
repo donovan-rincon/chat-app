@@ -123,6 +123,9 @@ func handleConnections(c *gin.Context) {
 		go handleMessages(chatroom)
 	}
 
+	// Initialize chatroom with the last 50 messages
+	initChatroom(chatroom, ws)
+
 	// Listen for messages from RabbitMQ
 	go listenForRabbitMQMessages(ws)
 
@@ -170,10 +173,26 @@ func isStockCommand(message string) bool {
 	return strings.HasPrefix(message, "/stock=")
 }
 
+func initChatroom(chatroom *models.Chatroom, ws *websocket.Conn) {
+	messages, err := db.GetLastNUserMessages(chatroom.ID, 50)
+	if err != nil {
+		log.Printf("Failed to retrieve messages: %v", err)
+		return
+	}
+
+	// Send the last 50 messages to the newly connected client
+	err = ws.WriteJSON(messages)
+	if err != nil {
+		ws.Close()
+		delete(clients[chatroom.ID], ws)
+		log.Printf("Failed to send initial messages: %v", err)
+	}
+}
+
 func handleMessages(chatroom *models.Chatroom) {
 	for {
 		msg := <-broadcast[chatroom.ID]
-		messages, err := db.GetLastUserMessages(msg.ChatroomID, 50)
+		messages, err := db.GetLastNUserMessages(msg.ChatroomID, 1)
 		if err != nil {
 			log.Printf("Failed to retrieve messages: %v", err)
 			continue

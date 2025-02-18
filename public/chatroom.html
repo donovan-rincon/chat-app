@@ -27,7 +27,7 @@
             const data = JSON.parse(event.data);
             if (Array.isArray(data)) {
                 // If an array of messages is received, replace the message array
-                messageArray.push(data.reverse());
+                messageArray.push(...data.reverse());
             } else {
                 // If a single message is received, append it to the array
                 messageArray.push(data);
@@ -43,7 +43,7 @@
             messages.innerHTML = '';
             messageArray.forEach(msg => {
                 const p = document.createElement("p");
-                p.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span style="color: gray;">(${msg.timestamp})</span>`;
+                p.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <span style="color: gray; font-size:small">(${msg.timestamp})</span>`;
                 messages.appendChild(p);
             });
             messages.scrollTop = messages.scrollHeight;

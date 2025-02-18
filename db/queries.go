@@ -46,7 +46,7 @@ func CreateUserMessage(message *models.UserMessage) error {
 	return database.DB.Create(message).Error
 }
 
-func GetLastUserMessages(chatroomID uint, limit int) ([]models.UserMessage, error) {
+func GetLastNUserMessages(chatroomID uint, limit int) ([]models.UserMessage, error) {
 	var messages []models.UserMessage
 	err := database.DB.Where("chatroom_id = ?", chatroomID).Order("timestamp desc").Limit(limit).Find(&messages).Error
 	return messages, err
