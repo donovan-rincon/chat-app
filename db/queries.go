@@ -7,19 +7,25 @@ import (
 	"gorm.io/gorm"
 )
 
+type GormDB struct{}
+
+func NewGormDB() *GormDB {
+	return &GormDB{}
+}
+
 // User operations
-func CreateUser(user *models.User) error {
+func (db *GormDB) CreateUser(user *models.User) error {
 	return database.DB.Create(user).Error
 }
 
-func GetUserByUsername(username string) (*models.User, error) {
+func (db *GormDB) GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
 	err := database.DB.Where("username = ?", username).First(&user).Error
 	return &user, err
 }
 
 // Chatroom operations
-func GetOrCreateChatroom(name string) (*models.Chatroom, error) {
+func (db *GormDB) GetOrCreateChatroom(name string) (*models.Chatroom, error) {
 	var chatroom models.Chatroom
 	err := database.DB.Where("name = ?", name).First(&chatroom).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -35,18 +41,18 @@ func GetOrCreateChatroom(name string) (*models.Chatroom, error) {
 	return &chatroom, nil
 }
 
-func GetChatroomByName(name string) (*models.Chatroom, error) {
+func (db *GormDB) GetChatroomByName(name string) (*models.Chatroom, error) {
 	var chatroom models.Chatroom
 	err := database.DB.Where("name = ?", name).First(&chatroom).Error
 	return &chatroom, err
 }
 
 // Message operations
-func CreateUserMessage(message *models.UserMessage) error {
+func (db *GormDB) CreateUserMessage(message *models.UserMessage) error {
 	return database.DB.Create(message).Error
 }
 
-func GetLastNUserMessages(chatroomID uint, limit int) ([]models.UserMessage, error) {
+func (db *GormDB) GetLastNUserMessages(chatroomID uint, limit int) ([]models.UserMessage, error) {
 	var messages []models.UserMessage
 	err := database.DB.Where("chatroom_id = ?", chatroomID).Order("timestamp desc").Limit(limit).Find(&messages).Error
 	return messages, err

@@ -23,19 +23,27 @@ var clients = make(map[uint]map[*websocket.Conn]bool)
 var broadcast = make(map[uint]chan models.UserMessage)
 var upgrader = websocket.Upgrader{}
 
-func SetupRouter() *gin.Engine {
+var DB db.DBInterface
+
+func SetupRouter(dbInstance db.DBInterface) *gin.Engine {
+	DB = dbInstance
 	r := gin.Default()
 	store := cookie.NewStore([]byte("super-secret-key"))
 	r.Use(sessions.Sessions("session", store))
 
 	r.POST("/register", registerHandler)
 	r.POST("/login", loginHandler)
+
 	r.GET("/chatroom/:name", authMiddleware(), chatroomHandler)
 	r.GET("/ws/:name", authMiddleware(), handleConnections)
 
-	r.Static("/public", "./public")
-	r.Static("/css", "./public/css")
-	r.LoadHTMLGlob("public/*.html")
+	isTestMode := gin.Mode() == gin.TestMode
+
+	if !isTestMode {
+		r.Static("/public", "./public")
+		r.Static("/css", "./public/css")
+		r.LoadHTMLGlob("public/*.html")
+	}
 
 	return r
 }
@@ -48,7 +56,7 @@ func registerHandler(c *gin.Context) {
 	}
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	user.Password = string(hashedPassword)
-	if err := db.CreateUser(&user); err != nil {
+	if err := DB.CreateUser(&user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -61,7 +69,7 @@ func loginHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	dbUser, err := db.GetUserByUsername(user.Username)
+	dbUser, err := DB.GetUserByUsername(user.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -97,7 +105,7 @@ func chatroomHandler(c *gin.Context) {
 		return
 	}
 	log.Printf("Chatroom requested: %s", chatroomName)
-	chatroom, err := db.GetOrCreateChatroom(chatroomName)
+	chatroom, err := DB.GetOrCreateChatroom(chatroomName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "chatroom creation failed"})
 		return
@@ -107,7 +115,7 @@ func chatroomHandler(c *gin.Context) {
 
 func handleConnections(c *gin.Context) {
 	chatroomName := c.Param("name")
-	chatroom, err := db.GetChatroomByName(chatroomName)
+	chatroom, err := DB.GetChatroomByName(chatroomName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "chatroom not found"})
 		return
@@ -145,7 +153,7 @@ func handleConnections(c *gin.Context) {
 			continue
 		}
 
-		user, err := db.GetUserByUsername(wsMsg.Username)
+		user, err := DB.GetUserByUsername(wsMsg.Username)
 		if err != nil {
 			log.Printf("Failed to retrieve user: %v", err)
 			continue
@@ -161,7 +169,7 @@ func handleConnections(c *gin.Context) {
 			Message:    wsMsg.Message,
 			Timestamp:  formattedTime,
 		}
-		err = db.CreateUserMessage(&msg)
+		err = DB.CreateUserMessage(&msg)
 		if err != nil {
 			log.Printf("Failed to save message: %v", err)
 			continue
@@ -175,7 +183,7 @@ func isStockCommand(message string) bool {
 }
 
 func initChatroom(chatroom *models.Chatroom, ws *websocket.Conn) {
-	messages, err := db.GetLastNUserMessages(chatroom.ID, 50)
+	messages, err := DB.GetLastNUserMessages(chatroom.ID, 50)
 	if err != nil {
 		log.Printf("Failed to retrieve messages: %v", err)
 		return
@@ -193,7 +201,7 @@ func initChatroom(chatroom *models.Chatroom, ws *websocket.Conn) {
 func handleMessages(chatroom *models.Chatroom) {
 	for {
 		msg := <-broadcast[chatroom.ID]
-		messages, err := db.GetLastNUserMessages(msg.ChatroomID, 1)
+		messages, err := DB.GetLastNUserMessages(msg.ChatroomID, 1)
 		if err != nil {
 			log.Printf("Failed to retrieve messages: %v", err)
 			continue
